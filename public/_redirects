@@ -1,0 +1,9 @@
+# Admin panel redirects
+/admin /admin/login.html 200
+/admin/ /admin/login.html 200
+
+# API routes
+/api/* /api/:splat 200
+
+# SPA fallback
+/* /index.html 200
