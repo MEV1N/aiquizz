@@ -1,13 +1,13 @@
-# Quiz Web App with Google Sheets Integration
+# Quiz Web App with Admin Panel
 
-A responsive, single-page quiz application built with React, TypeScript, and Tailwind CSS. Features a comprehensive mixed quiz covering AI, Machine Learning, Deep Learning, and Neural Networks with automatic Google Sheets result logging.
+A responsive, single-page quiz application built with React, TypeScript, and Tailwind CSS. Features a comprehensive mixed quiz covering AI, Machine Learning, Deep Learning, and Neural Networks with automatic result logging and admin leaderboard.
 
 ## Features
 
 - 🧠 **Comprehensive Mixed Quiz**: 12 questions covering AI, Machine Learning, Deep Learning, Neural Networks
 - 📱 **Responsive Design**: Works perfectly on desktop and mobile devices
 - ✅ **Immediate Grading**: Instant results with detailed explanations
-- 📊 **Google Sheets Integration**: Automatic result logging via webhook or API
+- 📊 **File-Based Storage**: Automatic result logging to JSON files
 - 🎯 **Progress Tracking**: Visual progress indicators during quiz
 - 🔐 **Input Validation**: Name required
 - ♿ **Accessible**: Semantic HTML and keyboard navigation support
@@ -30,66 +30,49 @@ npm run dev
 
 The app will be available at `http://localhost:5173`
 
-### 2. Google Sheets Setup
+**Quiz results are automatically saved to local JSON files and displayed in the admin panel!**
 
-#### Option A: Google Apps Script (Recommended)
+### 2. Storage System
 
-1. **Create a Google Sheet**:
-   - Go to [Google Sheets](https://sheets.google.com)
-   - Create a new spreadsheet
-   - Add these column headers in row 1:
-     ```
-     Timestamp | Name | Quiz Title | Score | Total Questions | Percentage | Selected Answers | Correct Answers
-     ```
+**Simple File-Based Storage** - No external services required!
 
-2. **Setup Apps Script**:
-   - In your Google Sheet, go to `Extensions > Apps Script`
-   - Replace the default code with the script from `google-apps-script.js` (see below)
-   - Replace `YOUR_SHEET_ID` with your actual Sheet ID (found in the URL)
-   - Save the project
+- Quiz results are automatically saved to `/data/quiz-results.json`
+- No setup needed - works out of the box
+- Results persist between deployments on platforms that support file storage
+- Admin panel reads directly from the JSON file
 
-3. **Deploy as Web App**:
-   - Click `Deploy > New Deployment`
-   - Choose type: `Web app`
-   - Execute as: `Me`
-   - Who has access: `Anyone, even anonymous`
-   - Click `Deploy`
-   - Copy the Web App URL
-
-4. **Configure the App**:
-   - Open `src/services/googleSheets.ts`
-   - Replace `YOUR_SCRIPT_ID` in `WEBHOOK_URL` with your Web App URL
-
-#### Option B: Google Sheets API with Backend
-
-1. **Setup Service Account**:
-   - Go to [Google Cloud Console](https://console.cloud.google.com)
-   - Create a new project or select existing
-   - Enable Google Sheets API
-   - Create service account credentials
-   - Download the JSON key file
-
-2. **Configure Backend**:
-   - Use the provided `server.js` example
-   - Place your service account JSON file in the project
-   - Update environment variables
-
-3. **Share Sheet with Service Account**:
-   - Open your Google Sheet
-   - Share with the service account email (from JSON file)
-   - Give "Editor" permissions
-
-### 3. Configuration Files
-
-#### Update Google Sheets Service (`src/services/googleSheets.ts`):
-```typescript
-const WEBHOOK_URL = 'https://script.google.com/macros/s/YOUR_ACTUAL_SCRIPT_ID/exec';
-const SHEET_ID = 'YOUR_ACTUAL_SHEET_ID';
-```
+**How it works:**
+- When someone completes a quiz, results are saved to `data/quiz-results.json`
+- Admin panel fetches data from `/api/leaderboard` which reads the JSON file
+- No external APIs, databases, or third-party services required
 
 ## Deployment Options
 
-### GitHub Pages
+### Vercel (Recommended - supports serverless functions)
+1. **Deploy to Vercel**:
+   ```bash
+   # Install Vercel CLI
+   npm install -g vercel
+
+   # Deploy
+   vercel --prod
+   ```
+
+2. **No Environment Variables Needed!**:
+   - The app uses file-based storage
+   - No external service configuration required
+
+3. **Test the Integration**:
+   - Take a quiz on your deployed app
+   - Check the admin panel - results should appear automatically!
+
+### Netlify (with serverless functions)
+1. Connect your repository to Netlify
+2. Build command: `npm run build`
+3. Publish directory: `dist`
+4. No environment variables needed!
+
+### GitHub Pages (frontend only - no data persistence)
 ```bash
 # Build the app
 npm run build
@@ -98,165 +81,79 @@ npm run build
 npm install -g gh-pages
 gh-pages -d dist
 ```
+Note: GitHub Pages doesn't support serverless functions, so quiz results won't persist.
 
-### Netlify
-1. Connect your repository to Netlify
-2. Build command: `npm run build`
-3. Publish directory: `dist`
+## File-Based Storage
 
-### Vercel
-```bash
-# Install Vercel CLI
-npm install -g vercel
+The app now uses simple JSON file storage:
 
-# Deploy
-vercel --prod
-```
+- **`/data/quiz-results.json`** - Stores all quiz submissions
+- **Automatic creation** - File and directory created automatically on first submission
+- **No setup required** - Works immediately after deployment
+- **Persistent storage** - Results saved permanently (on platforms that support file persistence)
 
-## Google Apps Script Code
-
-Create this script in Google Apps Script (replace `YOUR_SHEET_ID`):
-
-```javascript
-function doPost(e) {
-  try {
-    const SHEET_ID = 'YOUR_SHEET_ID'; // Replace with your actual Sheet ID
-    const sheet = SpreadsheetApp.openById(SHEET_ID).getActiveSheet();
-    
-    const data = JSON.parse(e.postData.contents);
-    
-    // Prepare row data matching the expected format
-    const rowData = [
-      data.timestamp,
-      data.name,
-      data.email,
-      data.quiz,
-      data.score,
-      data.total,
-      data.percentage,
-      JSON.stringify(data.selectedAnswers),
-      JSON.stringify(data.correctAnswers)
-    ];
-    
-    // Append to sheet
-    sheet.appendRow(rowData);
-    
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: true, message: 'Data saved successfully' }))
-      .setMimeType(ContentService.MimeType.JSON);
-      
-  } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
+**Example quiz result entry:**
+```json
+{
+  "id": 1634567890123.456,
+  "timestamp": "2025-01-23T12:34:56Z",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "quiz": "AI & Machine Learning Knowledge Test",
+  "score": 8,
+  "total": 12,
+  "percentage": 66.67,
+  "selectedAnswers": {"1":"b","2":"c"},
+  "correctAnswers": {"1":"b","2":"c"},
+  "createdAt": "2025-01-23T12:34:56Z"
 }
-
-function doGet() {
-  return ContentService
-    .createTextOutput('Quiz webhook endpoint is working!')
-    .setMimeType(ContentService.MimeType.TEXT);
-}
-```
-
-## Backend Example (server.js)
-
-For production use with Google Sheets API:
-
-```javascript
-const express = require('express');
-const { GoogleSpreadsheet } = require('google-spreadsheet');
-const { JWT } = require('google-auth-library');
-const cors = require('cors');
-
-const app = express();
-app.use(express.json());
-app.use(cors());
-
-// Configure these environment variables
-const SHEET_ID = process.env.SHEET_ID;
-const serviceAccountAuth = new JWT({
-  email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
-app.post('/api/submit-quiz', async (req, res) => {
-  try {
-    const doc = new GoogleSpreadsheet(SHEET_ID, serviceAccountAuth);
-    await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0];
-    
-    const { 
-      timestamp, name, email, quiz, score, total, percentage, 
-      selectedAnswers, correctAnswers 
-    } = req.body;
-    
-    await sheet.addRow([
-      timestamp,
-      name,
-      email,
-      quiz,
-      score,
-      total,
-      percentage,
-      JSON.stringify(selectedAnswers),
-      JSON.stringify(correctAnswers)
-    ]);
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error saving to Google Sheets:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
 ```
 
 ## Security Notes
 
 ⚠️ **Important Security Considerations**:
 
-1. **Never expose service account private keys in client-side code**
-2. **Use the Google Apps Script webhook method for simpler, secure deployment**
-3. **For production with direct API access, always use a backend server**
-4. **Validate and sanitize all inputs on the server side**
+1. **Admin panel is password-protected** - Change the default password in `/admin/login.html`
+2. **File-based storage is secure** - Quiz results are stored server-side, not client-side
+3. **Input validation** - All inputs are validated and sanitized on the server side
+4. **No external dependencies** - No third-party services or APIs required
 
-## Data Format
+## Data Storage
 
-### Webhook Payload
+### File Structure
+```
+data/
+└── quiz-results.json    # All quiz submissions stored here
+```
+
+### Data Format
+Each quiz result is stored as a JSON object:
 ```json
 {
+  "id": 1634567890123.456,
   "timestamp": "2025-01-23T12:34:56Z",
   "name": "John Doe",
+  "email": "john@example.com", 
   "quiz": "AI & Machine Learning Knowledge Test",
-  "score": 2,
+  "score": 8,
   "total": 12,
-  "percentage": 16.67,
-  "selectedAnswers": {"1":"b","2":"c","3":"a"},
-  "correctAnswers": {"1":"b","2":"c","3":"a"}
+  "percentage": 66.67,
+  "selectedAnswers": {"1":"b","2":"c"},
+  "correctAnswers": {"1":"b","2":"c"},
+  "createdAt": "2025-01-23T12:34:56Z"
 }
-```
-
-### Google Sheet Columns
-```
-Timestamp | Name | Quiz Title | Score | Total Questions | Percentage | Selected Answers | Correct Answers
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **CORS Errors**: Ensure your Google Apps Script is deployed with "Anyone, even anonymous" access
-2. **Webhook Not Working**: Check that the URL in `googleSheets.ts` matches your deployed Apps Script URL
-3. **Sheet Not Updating**: Verify the Sheet ID and that the script has permission to edit
+1. **Admin Panel Access**: Make sure you're using the correct password set in `/admin/login.html`
+2. **Results Not Saving**: Check that the `/data/` directory has write permissions
+3. **Leaderboard Empty**: Ensure at least one quiz has been completed
 
 ### Development Mode
-When `WEBHOOK_URL` contains `YOUR_SCRIPT_ID`, the app will show an alert with the payload instead of sending to Google Sheets.
+Run locally with `npm run dev` and test the complete flow: take a quiz → check admin panel for results.
 
 ## Quiz Content
 
@@ -274,8 +171,100 @@ All questions include detailed explanations for learning purposes.
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **Build Tool**: Vite
-- **Backend Options**: Google Apps Script or Node.js + Express
+- **Backend**: Serverless functions (Vercel/Netlify compatible)
+- **Storage**: File-based JSON storage
+- **Admin Panel**: HTML + JavaScript with password protection
 
 ## License
 
 MIT License - feel free to use for educational or commercial purposes.
+
+## Admin Panel - Leaderboard
+
+This repo includes a complete **admin panel** at `/admin/` that displays quiz results in a beautiful leaderboard format, separate from the public quiz interface.
+
+### Admin Panel Features
+
+- 🏆 **Leaderboard Display**: Names, quiz titles, scores sorted highest to lowest
+- 📊 **Statistics Dashboard**: Total submissions, unique participants, average scores
+- 🔍 **Advanced Filtering**: Filter by quiz type, sort by score/date/name, search by name
+- 🔐 **Password Protection**: Simple login system to keep results private
+- 📱 **Responsive Design**: Works on all devices
+- 🔄 **Real-time Data**: Fetches latest results from local storage
+
+### Admin Panel Setup
+
+1. **Files included**:
+   - `/admin/login.html` - Password-protected login page
+   - `/admin/index.html` - Main leaderboard interface
+   - `/admin/admin.js` - Frontend JavaScript
+   - `/api/leaderboard.js` - Serverless API to fetch data from JSON files
+
+2. **Change the admin password**:
+   - Open `/admin/login.html`
+   - Find line: `const ADMIN_PASSWORD = 'quiz_admin_2025';`
+   - Change to your secure password
+
+3. **Deploy and access**:
+   - Deploy to Vercel/Netlify (same as main quiz)
+   - Access at: `https://yourdomain.com/admin/`
+   - Login with your password to view leaderboard
+
+### Admin Panel Usage
+
+- **Access**: `https://yourdomain.com/admin/` (password-protected)
+- **View Rankings**: See all participants ranked by score
+- **Filter Results**: Filter by specific quiz or search by name
+- **Sort Options**: Sort by highest score, percentage, date, or name
+- **Statistics**: View total submissions, unique participants, average scores
+- **Session**: 24-hour login sessions with logout option
+
+## Serverless Endpoints
+
+### `/api/submit.js` - Save Quiz Results
+
+Accepts POST JSON payloads from the quiz app and saves to local JSON file.
+
+**No environment variables required!**
+
+**Example payload:**
+```json
+{
+  "timestamp": "2025-01-23T12:34:56Z",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "quiz": "AI & Machine Learning Knowledge Test",
+  "score": 8,
+  "total": 12,
+  "percentage": 66.67,
+  "selectedAnswers": {"1":"b","2":"c"},
+  "correctAnswers": {"1":"b","2":"c"}
+}
+```
+
+### `/api/leaderboard.js` - Fetch Leaderboard Data
+
+Returns JSON with all quiz results sorted by score, plus statistics. Reads from local JSON file.
+
+**Response format:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "name": "John Doe",
+      "quiz": "AI Quiz",
+      "score": 10,
+      "total": 12,
+      "percentage": 83.33,
+      "timestamp": "2025-01-23T12:34:56Z"
+    }
+  ],
+  "stats": {
+    "totalSubmissions": 150,
+    "uniqueParticipants": 75,
+    "averageScore": 72.5,
+    "highestScore": 100
+  }
+}
+```

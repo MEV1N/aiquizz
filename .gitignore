@@ -21,3 +21,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Data directory for quiz results storage
+data/
+!data/.gitkeep
