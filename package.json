@@ -2,8 +2,7 @@
   "name": "quiz-web-app",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
-  "description": "Comprehensive quiz web app with Google Sheets integration",
+  "description": "Comprehensive quiz web app with admin panel",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,6 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "server": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
