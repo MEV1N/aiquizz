@@ -1,5 +1,4 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
 // Helper to read raw body when req.body is not populated by the platform
 const getRawBody = (req) => new Promise((resolve, reject) => {
@@ -9,35 +8,56 @@ const getRawBody = (req) => new Promise((resolve, reject) => {
   req.on('error', reject);
 });
 
-// Helper to ensure data directory exists
-const ensureDataDir = async () => {
-  const dataDir = path.join(process.cwd(), 'data');
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
+// Initialize Supabase client
+const getSupabaseClient = () => {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('Supabase not configured. Using fallback storage.');
+    return null;
   }
-  return dataDir;
+  
+  return createClient(supabaseUrl, supabaseKey);
 };
 
-// Helper to read quiz results from JSON file
-const readQuizResults = async () => {
+// Helper to save quiz result to Supabase
+const saveQuizResult = async (result) => {
+  const supabase = getSupabaseClient();
+  
+  if (!supabase) {
+    console.log('Supabase not available, result saved to logs:', result);
+    return { success: true, id: result.id };
+  }
+  
   try {
-    const dataDir = await ensureDataDir();
-    const filePath = path.join(dataDir, 'quiz-results.json');
-    const data = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(data);
+    const { data, error } = await supabase
+      .from('quiz_results')
+      .insert([{
+        name: result.name,
+        email: result.email || '',
+        quiz: result.quiz,
+        score: result.score,
+        total: result.total,
+        percentage: result.percentage,
+        selected_answers: result.selectedAnswers || {},
+        correct_answers: result.correctAnswers || {},
+        created_at: result.timestamp || new Date().toISOString()
+      }])
+      .select();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('Quiz result saved to Supabase:', data[0]);
+    return { success: true, id: data[0].id };
+    
   } catch (error) {
-    // If file doesn't exist or is empty, return empty array
-    return [];
+    console.error('Error saving to Supabase:', error);
+    return { success: false, error: error.message };
   }
-};
-
-// Helper to write quiz results to JSON file
-const writeQuizResults = async (results) => {
-  const dataDir = await ensureDataDir();
-  const filePath = path.join(dataDir, 'quiz-results.json');
-  await fs.writeFile(filePath, JSON.stringify(results, null, 2), 'utf8');
 };
 
 module.exports = async (req, res) => {
@@ -80,9 +100,6 @@ module.exports = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields: name, quiz, score' });
     }
 
-    // Read existing results
-    const results = await readQuizResults();
-
     // Create new result entry
     const newResult = {
       id: Date.now() + Math.random(), // Simple unique ID
@@ -98,19 +115,23 @@ module.exports = async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    // Add new result to the array
-    results.push(newResult);
+    // Save to Supabase
+    const result = await saveQuizResult(newResult);
 
-    // Write back to file
-    await writeQuizResults(results);
-
-    console.log(`Quiz result saved for ${name}: ${score}/${total} (${percentage}%)`);
-
-    return res.status(200).json({ 
-      success: true, 
-      message: 'Quiz result saved successfully',
-      id: newResult.id
-    });
+    if (result.success) {
+      console.log(`Quiz result saved for ${name}: ${score}/${total} (${percentage}%)`);
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Quiz result saved successfully',
+        id: result.id
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to save quiz result',
+        details: result.error
+      });
+    }
 
   } catch (error) {
     console.error('Error in /api/submit:', error);

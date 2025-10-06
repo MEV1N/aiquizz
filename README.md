@@ -32,19 +32,31 @@ The app will be available at `http://localhost:5173`
 
 **Quiz results are automatically saved to local JSON files and displayed in the admin panel!**
 
-### 2. Storage System
+### 2. Database Setup (Supabase) - **REQUIRED for data persistence**
 
-**Simple File-Based Storage** - No external services required!
+**Free Supabase Database** - Stores quiz results permanently!
 
-- Quiz results are automatically saved to `/data/quiz-results.json`
-- No setup needed - works out of the box
-- Results persist between deployments on platforms that support file storage
-- Admin panel reads directly from the JSON file
+1. **Create a Supabase account**:
+   - Go to [https://supabase.com](https://supabase.com)
+   - Sign up for free (no credit card required)
+   - Create a new project
+
+2. **Set up the database**:
+   - Go to your Supabase project dashboard
+   - Click "SQL Editor" in the sidebar
+   - Copy and paste the SQL from `supabase-setup.sql`
+   - Click "Run" to create the table
+
+3. **Get your credentials**:
+   - Go to Project Settings → API
+   - Copy the "URL" and "anon public" key
+   - Add these to your environment variables (see deployment section)
 
 **How it works:**
-- When someone completes a quiz, results are saved to `data/quiz-results.json`
-- Admin panel fetches data from `/api/leaderboard` which reads the JSON file
-- No external APIs, databases, or third-party services required
+- Quiz results are automatically saved to Supabase database
+- Admin panel fetches live data from the database
+- Data persists permanently and scales automatically
+- Free tier includes 500MB storage and 2GB bandwidth
 
 ## Deployment Options
 
@@ -58,13 +70,15 @@ The app will be available at `http://localhost:5173`
    vercel --prod
    ```
 
-2. **No Environment Variables Needed!**:
-   - The app uses file-based storage
-   - No external service configuration required
+2. **Set Environment Variables in Vercel**:
+   - Go to your Vercel dashboard → Project Settings → Environment Variables
+   - Add these variables:
+     - `SUPABASE_URL`: Your Supabase project URL
+     - `SUPABASE_ANON_KEY`: Your Supabase anon public key
 
 3. **Test the Integration**:
    - Take a quiz on your deployed app
-   - Check the admin panel - results should appear automatically!
+   - Check the admin panel - results should appear from the database!
 
 ### Netlify (with serverless functions)
 1. Connect your repository to Netlify

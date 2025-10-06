@@ -1,26 +1,68 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
-// Helper to ensure data directory exists
-const ensureDataDir = async () => {
-  const dataDir = path.join(process.cwd(), 'data');
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
+// Initialize Supabase client
+const getSupabaseClient = () => {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('Supabase not configured. Using fallback data.');
+    return null;
   }
-  return dataDir;
+  
+  return createClient(supabaseUrl, supabaseKey);
 };
 
-// Helper to read quiz results from JSON file
+// Helper to read quiz results from Supabase
 const readQuizResults = async () => {
+  const supabase = getSupabaseClient();
+  
+  if (!supabase) {
+    // Return sample data if Supabase is not configured
+    return [
+      {
+        id: 1,
+        name: "Demo User",
+        email: "demo@example.com",
+        quiz: "AI & Machine Learning Knowledge Test",
+        score: 9,
+        total: 12,
+        percentage: 75,
+        selected_answers: {},
+        correct_answers: {},
+        created_at: new Date().toISOString()
+      }
+    ];
+  }
+  
   try {
-    const dataDir = await ensureDataDir();
-    const filePath = path.join(dataDir, 'quiz-results.json');
-    const data = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(data);
+    const { data, error } = await supabase
+      .from('quiz_results')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return [];
+    }
+
+    // Transform Supabase data to match our format
+    return data.map(row => ({
+      id: row.id,
+      timestamp: row.created_at,
+      name: row.name,
+      email: row.email || '',
+      quiz: row.quiz,
+      score: row.score,
+      total: row.total,
+      percentage: row.percentage,
+      selectedAnswers: row.selected_answers || {},
+      correctAnswers: row.correct_answers || {},
+      date: new Date(row.created_at).toISOString().split('T')[0]
+    }));
+    
   } catch (error) {
-    // If file doesn't exist or is empty, return empty array
+    console.error('Error reading quiz results:', error);
     return [];
   }
 };

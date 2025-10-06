@@ -2,7 +2,7 @@ import { WebhookPayload } from '../types/quiz';
 
 export const sendQuizResult = async (payload: WebhookPayload): Promise<boolean> => {
   try {
-    // Use our serverless endpoint
+    // Save to Supabase database via our API
     const response = await fetch('/api/submit', {
       method: 'POST',
       headers: {
@@ -18,15 +18,17 @@ export const sendQuizResult = async (payload: WebhookPayload): Promise<boolean> 
     }
 
     const result = await response.json();
-    console.log('Quiz result saved successfully:', result);
-    return result.success;
+    if (result.success) {
+      console.log('Quiz result saved successfully to database:', result);
+      return true;
+    } else {
+      console.error('Quiz result save failed:', result);
+      return false;
+    }
     
   } catch (error) {
     console.error('Error sending quiz result:', error);
-    
-    // Log the payload for debugging
-    console.log('Quiz result payload:', payload);
-    
+    console.log('Quiz result payload that failed:', payload);
     return false;
   }
 };
